@@ -1,0 +1,522 @@
+# Import necessary libraries
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.model_selection import train_test_split, cross_val_score, GridSearchCV
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.linear_model import LinearRegression, Ridge, Lasso
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.svm import SVR
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.pipeline import Pipeline
+import warnings
+warnings.filterwarnings('ignore')
+
+# Set up plotting style
+plt.style.use('seaborn-v0_8')
+sns.set_palette("husl")
+
+print("=" * 60)
+print("CAR PRICE PREDICTION WITH MACHINE LEARNING")
+print("=" * 60)
+
+# Load the dataset
+df = pd.read_csv('car data.csv')
+
+# Data Exploration
+print("\n" + "=" * 50)
+print("DATA EXPLORATION")
+print("=" * 50)
+
+print(f"Dataset shape: {df.shape}")
+print(f"Columns: {df.columns.tolist()}")
+
+# Display basic information
+print("\nFirst 5 rows:")
+print(df.head())
+
+print("\nDataset information:")
+print(df.info())
+
+print("\nStatistical summary:")
+print(df.describe())
+
+# Check for missing values
+print("\nMissing values:")
+print(df.isnull().sum())
+
+print("\nUnique values in categorical columns:")
+print(f"Car Names: {df['Car_Name'].nunique()}")
+print(f"Fuel Types: {df['Fuel_Type'].unique()}")
+print(f"Selling Types: {df['Selling_type'].unique()}")
+print(f"Transmission: {df['Transmission'].unique()}")
+print(f"Owner: {df['Owner'].unique()}")
+
+# Data Preprocessing
+print("\n" + "=" * 50)
+print("DATA PREPROCESSING")
+print("=" * 50)
+
+# Create a copy for preprocessing
+df_clean = df.copy()
+
+# Calculate car age instead of year
+df_clean['Car_Age'] = 2024 - df_clean['Year']  # Assuming current year is 2024
+
+# Drop the original Year column
+df_clean = df_clean.drop('Year', axis=1)
+
+# Handle categorical variables
+print("\nEncoding categorical variables...")
+
+# Label encoding for categorical variables
+label_encoders = {}
+categorical_cols = ['Fuel_Type', 'Selling_type', 'Transmission']
+
+for col in categorical_cols:
+    le = LabelEncoder()
+    df_clean[col] = le.fit_transform(df_clean[col])
+    label_encoders[col] = le
+    print(f"{col}: {dict(zip(le.classes_, le.transform(le.classes_)))}")
+
+# For Car_Name, we'll use frequency encoding to reduce dimensionality
+car_name_freq = df_clean['Car_Name'].value_counts()
+df_clean['Car_Name_Freq'] = df_clean['Car_Name'].map(car_name_freq)
+df_clean = df_clean.drop('Car_Name', axis=1)
+
+print(f"\nCleaned dataset shape: {df_clean.shape}")
+print("\nCleaned dataset info:")
+print(df_clean.info())
+
+# Data Visualization
+print("\n" + "=" * 50)
+print("DATA VISUALIZATION")
+print("=" * 50)
+
+# Create subplots for visualization
+fig, axes = plt.subplots(3, 3, figsize=(20, 15))
+
+# 1. Distribution of Selling Price
+axes[0, 0].hist(df['Selling_Price'], bins=30, alpha=0.7, color='skyblue')
+axes[0, 0].set_title('Distribution of Selling Price')
+axes[0, 0].set_xlabel('Selling Price (Lakhs)')
+axes[0, 0].set_ylabel('Frequency')
+
+# 2. Selling Price vs Present Price
+axes[0, 1].scatter(df['Present_Price'], df['Selling_Price'], alpha=0.6)
+axes[0, 1].set_title('Selling Price vs Present Price')
+axes[0, 1].set_xlabel('Present Price (Lakhs)')
+axes[0, 1].set_ylabel('Selling Price (Lakhs)')
+
+# 3. Selling Price vs Driven Kms
+axes[0, 2].scatter(df['Driven_kms'], df['Selling_Price'], alpha=0.6)
+axes[0, 2].set_title('Selling Price vs Driven Kilometers')
+axes[0, 2].set_xlabel('Driven Kilometers')
+axes[0, 2].set_ylabel('Selling Price (Lakhs)')
+
+# 4. Fuel Type vs Selling Price
+fuel_price = df.groupby('Fuel_Type')['Selling_Price'].mean()
+axes[1, 0].bar(fuel_price.index, fuel_price.values, color=['lightcoral', 'lightgreen', 'lightblue'])
+axes[1, 0].set_title('Average Selling Price by Fuel Type')
+axes[1, 0].set_xlabel('Fuel Type')
+axes[1, 0].set_ylabel('Average Selling Price (Lakhs)')
+
+# 5. Transmission vs Selling Price
+transmission_price = df.groupby('Transmission')['Selling_Price'].mean()
+axes[1, 1].bar(transmission_price.index, transmission_price.values, color=['orange', 'purple'])
+axes[1, 1].set_title('Average Selling Price by Transmission')
+axes[1, 1].set_xlabel('Transmission')
+axes[1, 1].set_ylabel('Average Selling Price (Lakhs)')
+
+# 6. Selling Type vs Selling Price
+seller_price = df.groupby('Selling_type')['Selling_Price'].mean()
+axes[1, 2].bar(seller_price.index, seller_price.values, color=['red', 'blue'])
+axes[1, 2].set_title('Average Selling Price by Seller Type')
+axes[1, 2].set_xlabel('Seller Type')
+axes[1, 2].set_ylabel('Average Selling Price (Lakhs)')
+
+# 7. Owner vs Selling Price
+owner_price = df.groupby('Owner')['Selling_Price'].mean()
+axes[2, 0].bar(owner_price.index, owner_price.values, color=['green', 'yellow', 'pink', 'brown'])
+axes[2, 0].set_title('Average Selling Price by Number of Owners')
+axes[2, 0].set_xlabel('Number of Owners')
+axes[2, 0].set_ylabel('Average Selling Price (Lakhs)')
+
+# 8. Year vs Selling Price
+year_price = df.groupby('Year')['Selling_Price'].mean()
+axes[2, 1].plot(year_price.index, year_price.values, marker='o')
+axes[2, 1].set_title('Average Selling Price by Year')
+axes[2, 1].set_xlabel('Year')
+axes[2, 1].set_ylabel('Average Selling Price (Lakhs)')
+axes[2, 1].tick_params(axis='x', rotation=45)
+
+# 9. Correlation Heatmap
+numeric_cols = ['Selling_Price', 'Present_Price', 'Driven_kms', 'Car_Age']
+correlation_matrix = df_clean[numeric_cols].corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0, ax=axes[2, 2])
+axes[2, 2].set_title('Correlation Heatmap')
+
+plt.tight_layout()
+plt.show()
+
+# Additional Visualizations
+plt.figure(figsize=(15, 10))
+
+# Top 20 Car Models by Average Price
+plt.subplot(2, 2, 1)
+top_cars = df.groupby('Car_Name')['Selling_Price'].mean().sort_values(ascending=False).head(20)
+top_cars.plot(kind='bar')
+plt.title('Top 20 Car Models by Average Selling Price')
+plt.xlabel('Car Model')
+plt.ylabel('Average Selling Price (Lakhs)')
+plt.xticks(rotation=45)
+
+# Price Distribution by Transmission and Fuel Type
+plt.subplot(2, 2, 2)
+sns.boxplot(data=df, x='Transmission', y='Selling_Price', hue='Fuel_Type')
+plt.title('Price Distribution by Transmission and Fuel Type')
+plt.legend(title='Fuel Type')
+
+# Relationship between all numerical features
+plt.subplot(2, 2, 3)
+sns.scatterplot(data=df, x='Present_Price', y='Selling_Price', hue='Transmission', size='Driven_kms', alpha=0.6)
+plt.title('Present Price vs Selling Price (colored by Transmission)')
+
+# Car Age vs Selling Price
+plt.subplot(2, 2, 4)
+sns.scatterplot(data=df_clean, x='Car_Age', y='Selling_Price', hue='Fuel_Type', alpha=0.6)
+plt.title('Car Age vs Selling Price')
+
+plt.tight_layout()
+plt.show()
+
+# Prepare data for modeling
+print("\n" + "=" * 50)
+print("MODEL TRAINING PREPARATION")
+print("=" * 50)
+
+# Define features and target
+X = df_clean.drop('Selling_Price', axis=1)
+y = df_clean['Selling_Price']
+
+print(f"Features shape: {X.shape}")
+print(f"Target shape: {y.shape}")
+
+# Split the data
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+print(f"Training set size: {X_train.shape[0]}")
+print(f"Testing set size: {X_test.shape[0]}")
+
+# Initialize models
+models = {
+    'Linear Regression': LinearRegression(),
+    'Ridge Regression': Ridge(),
+    'Lasso Regression': Lasso(),
+    'Decision Tree': DecisionTreeRegressor(random_state=42),
+    'Random Forest': RandomForestRegressor(random_state=42),
+    'Gradient Boosting': GradientBoostingRegressor(random_state=42),
+    'Support Vector Regression': SVR()
+}
+
+# Model Training and Evaluation
+print("\n" + "=" * 50)
+print("MODEL TRAINING AND EVALUATION")
+print("=" * 50)
+
+results = {}
+
+for name, model in models.items():
+    print(f"\nTraining {name}...")
+    
+    # Train the model
+    model.fit(X_train, y_train)
+    
+    # Make predictions
+    y_pred = model.predict(X_test)
+    
+    # Calculate metrics
+    mae = mean_absolute_error(y_test, y_pred)
+    mse = mean_squared_error(y_test, y_pred)
+    rmse = np.sqrt(mse)
+    r2 = r2_score(y_test, y_pred)
+    
+    # Store results
+    results[name] = {
+        'MAE': mae,
+        'MSE': mse,
+        'RMSE': rmse,
+        'R2_Score': r2,
+        'model': model
+    }
+    
+    print(f"{name} Results:")
+    print(f"  MAE: {mae:.4f}")
+    print(f"  MSE: {mse:.4f}")
+    print(f"  RMSE: {rmse:.4f}")
+    print(f"  R² Score: {r2:.4f}")
+
+# Find the best model
+best_model_name = max(results, key=lambda x: results[x]['R2_Score'])
+best_model = results[best_model_name]['model']
+best_r2 = results[best_model_name]['R2_Score']
+
+print(f"\n" + "=" * 50)
+print("BEST MODEL SELECTION")
+print("=" * 50)
+print(f"Best Model: {best_model_name}")
+print(f"Best R² Score: {best_r2:.4f}")
+
+# Model Comparison Visualization
+print("\n" + "=" * 50)
+print("MODEL COMPARISON")
+print("=" * 50)
+
+# Create comparison DataFrame
+comparison_df = pd.DataFrame({
+    'Model': list(results.keys()),
+    'MAE': [results[name]['MAE'] for name in results],
+    'RMSE': [results[name]['RMSE'] for name in results],
+    'R2_Score': [results[name]['R2_Score'] for name in results]
+})
+
+print("\nModel Comparison Table:")
+print(comparison_df.round(4))
+
+# Plot model comparison
+fig, axes = plt.subplots(2, 2, figsize=(15, 10))
+
+# R² Score comparison
+axes[0, 0].bar(comparison_df['Model'], comparison_df['R2_Score'], color='lightblue')
+axes[0, 0].set_title('Model Comparison - R² Score')
+axes[0, 0].set_ylabel('R² Score')
+axes[0, 0].tick_params(axis='x', rotation=45)
+
+# RMSE comparison
+axes[0, 1].bar(comparison_df['Model'], comparison_df['RMSE'], color='lightcoral')
+axes[0, 1].set_title('Model Comparison - RMSE')
+axes[0, 1].set_ylabel('RMSE')
+axes[0, 1].tick_params(axis='x', rotation=45)
+
+# MAE comparison
+axes[1, 0].bar(comparison_df['Model'], comparison_df['MAE'], color='lightgreen')
+axes[1, 0].set_title('Model Comparison - MAE')
+axes[1, 0].set_ylabel('MAE')
+axes[1, 0].tick_params(axis='x', rotation=45)
+
+# Actual vs Predicted for best model
+y_pred_best = best_model.predict(X_test)
+axes[1, 1].scatter(y_test, y_pred_best, alpha=0.6)
+axes[1, 1].plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+axes[1, 1].set_xlabel('Actual Prices')
+axes[1, 1].set_ylabel('Predicted Prices')
+axes[1, 1].set_title(f'Actual vs Predicted - {best_model_name}')
+
+plt.tight_layout()
+plt.show()
+
+# Feature Importance (for tree-based models)
+if hasattr(best_model, 'feature_importances_'):
+    print("\n" + "=" * 50)
+    print("FEATURE IMPORTANCE ANALYSIS")
+    print("=" * 50)
+    
+    feature_importance = pd.DataFrame({
+        'feature': X.columns,
+        'importance': best_model.feature_importances_
+    }).sort_values('importance', ascending=False)
+    
+    print("\nFeature Importance:")
+    print(feature_importance)
+    
+    # Plot feature importance
+    plt.figure(figsize=(10, 6))
+    sns.barplot(data=feature_importance, x='importance', y='feature')
+    plt.title(f'Feature Importance - {best_model_name}')
+    plt.xlabel('Importance')
+    plt.tight_layout()
+    plt.show()
+
+# Hyperparameter Tuning for the best model
+print("\n" + "=" * 50)
+print("HYPERPARAMETER TUNING")
+print("=" * 50)
+
+if best_model_name == 'Random Forest':
+    param_grid = {
+        'n_estimators': [50, 100, 200],
+        'max_depth': [10, 20, None],
+        'min_samples_split': [2, 5, 10],
+        'min_samples_leaf': [1, 2, 4]
+    }
+    
+    grid_search = GridSearchCV(
+        RandomForestRegressor(random_state=42),
+        param_grid,
+        cv=5,
+        scoring='r2',
+        n_jobs=-1
+    )
+    
+    print("Performing grid search for Random Forest...")
+    grid_search.fit(X_train, y_train)
+    
+    best_model = grid_search.best_estimator_
+    print(f"Best parameters: {grid_search.best_params_}")
+    print(f"Best cross-validation score: {grid_search.best_score_:.4f}")
+
+# Final Model Evaluation
+print("\n" + "=" * 50)
+print("FINAL MODEL EVALUATION")
+print("=" * 50)
+
+# Make final predictions
+y_pred_final = best_model.predict(X_test)
+
+final_mae = mean_absolute_error(y_test, y_pred_final)
+final_rmse = np.sqrt(mean_squared_error(y_test, y_pred_final))
+final_r2 = r2_score(y_test, y_pred_final)
+
+print(f"Final Model Performance:")
+print(f"MAE: {final_mae:.4f}")
+print(f"RMSE: {final_rmse:.4f}")
+print(f"R² Score: {final_r2:.4f}")
+
+# Residual Analysis
+residuals = y_test - y_pred_final
+
+plt.figure(figsize=(15, 5))
+
+plt.subplot(1, 3, 1)
+plt.scatter(y_pred_final, residuals, alpha=0.6)
+plt.axhline(y=0, color='red', linestyle='--')
+plt.xlabel('Predicted Values')
+plt.ylabel('Residuals')
+plt.title('Residual Plot')
+
+plt.subplot(1, 3, 2)
+plt.hist(residuals, bins=30, alpha=0.7, color='skyblue')
+plt.xlabel('Residuals')
+plt.ylabel('Frequency')
+plt.title('Distribution of Residuals')
+
+plt.subplot(1, 3, 3)
+plt.scatter(y_test, y_pred_final, alpha=0.6)
+plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--', lw=2)
+plt.xlabel('Actual Prices')
+plt.ylabel('Predicted Prices')
+plt.title('Actual vs Predicted Prices')
+
+plt.tight_layout()
+plt.show()
+
+# Prediction on New Data
+print("\n" + "=" * 50)
+print("PREDICTION ON NEW DATA")
+print("=" * 50)
+
+# Create sample new car data for prediction
+sample_data = {
+    'Present_Price': [8.5, 12.0, 5.2, 25.0, 3.8],
+    'Driven_kms': [25000, 45000, 12000, 80000, 35000],
+    'Fuel_Type': [1, 0, 1, 0, 2],  # 0: Diesel, 1: Petrol, 2: CNG
+    'Selling_type': [0, 0, 1, 0, 1],  # 0: Dealer, 1: Individual
+    'Transmission': [0, 1, 0, 1, 0],  # 0: Manual, 1: Automatic
+    'Owner': [0, 0, 1, 0, 0],
+    'Car_Age': [3, 5, 2, 8, 4],
+    'Car_Name_Freq': [15, 8, 25, 3, 20]
+}
+
+sample_df = pd.DataFrame(sample_data)
+
+# Ensure column order matches training data
+sample_df = sample_df[X.columns]
+
+# Make predictions
+sample_predictions = best_model.predict(sample_df)
+
+print("\nSample Predictions:")
+print("=" * 40)
+for i, (features, pred) in enumerate(zip(sample_data['Present_Price'], sample_predictions)):
+    print(f"Sample {i+1}:")
+    print(f"  Present Price: {features} lakhs")
+    print(f"  Driven Kms: {sample_data['Driven_kms'][i]} km")
+    print(f"  Fuel Type: {['Diesel', 'Petrol', 'CNG'][sample_data['Fuel_Type'][i]]}")
+    print(f"  Transmission: {['Manual', 'Automatic'][sample_data['Transmission'][i]]}")
+    print(f"  Car Age: {sample_data['Car_Age'][i]} years")
+    print(f"  Predicted Selling Price: {pred:.2f} lakhs")
+    print("-" * 30)
+
+# Model Deployment Preparation
+print("\n" + "=" * 50)
+print("MODEL DEPLOYMENT PREPARATION")
+print("=" * 50)
+
+# Create a function for making predictions
+def predict_car_price(present_price, driven_kms, fuel_type, selling_type, transmission, owner, car_age, car_name_freq):
+    """
+    Predict car selling price based on input features
+    """
+    # Create input array
+    input_data = np.array([[present_price, driven_kms, fuel_type, selling_type, transmission, owner, car_age, car_name_freq]])
+    
+    # Make prediction
+    prediction = best_model.predict(input_data)
+    
+    return prediction[0]
+
+# Test the prediction function
+test_prediction = predict_car_price(
+    present_price=10.5,
+    driven_kms=30000,
+    fuel_type=1,  # Petrol
+    selling_type=0,  # Dealer
+    transmission=0,  # Manual
+    owner=0,
+    car_age=4,
+    car_name_freq=20
+)
+
+print(f"Test Prediction: ₹{test_prediction:.2f} lakhs")
+
+# Save the model (optional)
+import joblib
+
+# Save the model and label encoders
+model_data = {
+    'model': best_model,
+    'label_encoders': label_encoders,
+    'feature_names': X.columns.tolist()
+}
+
+joblib.dump(model_data, 'car_price_predictor.pkl')
+print("\nModel saved as 'car_price_predictor.pkl'")
+
+# Final Summary
+print("\n" + "=" * 60)
+print("PROJECT SUMMARY")
+print("=" * 60)
+
+print(f"🚗 CAR PRICE PREDICTION ANALYSIS COMPLETED")
+print(f"📊 Dataset: {df.shape[0]} cars, {df.shape[1]} features")
+print(f"🎯 Best Model: {best_model_name}")
+print(f"📈 Final R² Score: {final_r2:.4f}")
+print(f"💰 Average Prediction Error: ₹{final_mae:.2f} lakhs")
+
+print(f"\n🔑 KEY INSIGHTS:")
+print(f"   • Present Price has strong correlation with Selling Price")
+print(f"   • Car Age significantly affects depreciation")
+print(f"   • Automatic transmission cars have higher resale value")
+print(f"   • Diesel cars generally have better resale value")
+print(f"   • Lower kilometers driven increases selling price")
+
+print(f"\n💡 RECOMMENDATIONS:")
+print(f"   1. Use the model for accurate car price estimation")
+print(f"   2. Consider fuel type and transmission for pricing strategy")
+print(f"   3. Account for car age and mileage in valuation")
+print(f"   4. Regular model updates with new data for better accuracy")
+
+print(f"\n✅ MODEL READY FOR DEPLOYMENT!")
+print("=" * 60)
