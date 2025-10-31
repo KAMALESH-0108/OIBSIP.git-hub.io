@@ -1,0 +1,270 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+# Set up plotting style
+plt.style.use('seaborn-v0_8')
+sns.set_palette("husl")
+# Load the dataset
+df = pd.read_csv('Unemployment in India.csv')
+print("=" * 60)
+print("UNEMPLOYMENT ANALYSIS IN INDIA")
+print("=" * 60)
+# Data Exploration
+print("\n" + "=" * 50)
+print("DATA EXPLORATION")
+print("=" * 50)
+print(f"Dataset shape: {df.shape}")
+print(f"Columns: {df.columns.tolist()}")
+# Display basic information
+print("\nFirst 5 rows:")
+print(df.head())
+print("\nDataset information:")
+print(df.info())
+print("\nStatistical summary:")
+print(df.describe())
+# Check for missing values
+print("\nMissing values:")
+print(df.isnull().sum())
+# Data Cleaning
+print("\n" + "=" * 50)
+print("DATA CLEANING")
+print("=" * 50)
+# Remove empty rows and handle missing values
+df_clean = df.dropna()
+df_clean = df_clean[df_clean['Region'] != '']
+# Convert date column to datetime
+df_clean['Date'] = pd.to_datetime(df_clean['Date'], format='%d-%m-%Y')
+# Extract year and month for analysis
+df_clean['Year'] = df_clean['Date'].dt.year
+df_clean['Month'] = df_clean['Date'].dt.month
+df_clean['Month_Name'] = df_clean['Date'].dt.month_name()
+# Remove any remaining missing values
+df_clean = df_clean.dropna()
+print(f"Cleaned dataset shape: {df_clean.shape}")
+print(f"Date range: {df_clean['Date'].min()} to {df_clean['Date'].max()}")
+# Basic Statistics
+print("\n" + "=" * 50)
+print("BASIC STATISTICS")
+print("=" * 50)
+print(f"Number of unique regions: {df_clean['Region'].nunique()}")
+print(f"Number of unique areas: {df_clean['Area'].nunique()}")
+print(f"Areas: {df_clean['Area'].unique().tolist()}")
+print(f"\nOverall Unemployment Rate Statistics:")
+print(f"Mean: {df_clean['Estimated Unemployment Rate (%)'].mean():.2f}%")
+print(f"Median: {df_clean['Estimated Unemployment Rate (%)'].median():.2f}%")
+print(f"Standard Deviation: {df_clean['Estimated Unemployment Rate (%)'].std():.2f}%")
+print(f"Minimum: {df_clean['Estimated Unemployment Rate (%)'].min():.2f}%")
+print(f"Maximum: {df_clean['Estimated Unemployment Rate (%)'].max():.2f}%")
+# Data Visualization
+print("\n" + "=" * 50)
+print("DATA VISUALIZATION")
+print("=" * 50)
+# 1. Overall Unemployment Rate Distribution
+plt.figure(figsize=(15, 12))
+plt.subplot(3, 3, 1)
+sns.histplot(data=df_clean, x='Estimated Unemployment Rate (%)', bins=30, kde=True)
+plt.title('Distribution of Unemployment Rate')
+plt.xlabel('Unemployment Rate (%)')
+# 2. Unemployment Rate by Area
+plt.subplot(3, 3, 2)
+sns.boxplot(data=df_clean, x='Area', y='Estimated Unemployment Rate (%)')
+plt.title('Unemployment Rate by Area Type')
+plt.xticks(rotation=45)
+# 3. Top 10 Regions with Highest Average Unemployment
+plt.subplot(3, 3, 3)
+region_unemployment = df_clean.groupby('Region')['Estimated Unemployment Rate (%)'].mean().sort_values(ascending=False).head(10)
+region_unemployment.plot(kind='bar')
+plt.title('Top 10 Regions with Highest Average Unemployment')
+plt.ylabel('Average Unemployment Rate (%)')
+plt.xticks(rotation=45)
+# 4. Unemployment Trend Over Time
+plt.subplot(3, 3, 4)
+monthly_trend = df_clean.groupby('Date')['Estimated Unemployment Rate (%)'].mean()
+plt.plot(monthly_trend.index, monthly_trend.values)
+plt.title('Unemployment Rate Trend Over Time')
+plt.xlabel('Date')
+plt.ylabel('Average Unemployment Rate (%)')
+plt.xticks(rotation=45)
+# 5. Labour Participation Rate Distribution
+plt.subplot(3, 3, 5)
+sns.histplot(data=df_clean, x='Estimated Labour Participation Rate (%)', bins=30, kde=True)
+plt.title('Distribution of Labour Participation Rate')
+plt.xlabel('Labour Participation Rate (%)')
+# 6. Correlation Heatmap
+plt.subplot(3, 3, 6)
+numeric_cols = ['Estimated Unemployment Rate (%)', 'Estimated Employed', 'Estimated Labour Participation Rate (%)']
+correlation_matrix = df_clean[numeric_cols].corr()
+sns.heatmap(correlation_matrix, annot=True, cmap='coolwarm', center=0)
+plt.title('Correlation Heatmap')
+# 7. Unemployment Rate by Year
+plt.subplot(3, 3, 7)
+yearly_unemployment = df_clean.groupby('Year')['Estimated Unemployment Rate (%)'].mean()
+yearly_unemployment.plot(kind='bar')
+plt.title('Average Unemployment Rate by Year')
+plt.ylabel('Average Unemployment Rate (%)')
+# 8. Labour Participation vs Unemployment Rate
+plt.subplot(3, 3, 8)
+sns.scatterplot(data=df_clean, x='Estimated Labour Participation Rate (%)', 
+               y='Estimated Unemployment Rate (%)', hue='Area', alpha=0.6)
+plt.title('Labour Participation vs Unemployment Rate')
+plt.tight_layout()
+plt.show()
+# COVID-19 Impact Analysis
+print("\n" + "=" * 50)
+print("COVID-19 IMPACT ANALYSIS")
+print("=" * 50)
+# Define pre-COVID and COVID periods
+pre_covid = df_clean[df_clean['Date'] < '2020-03-01']
+during_covid = df_clean[df_clean['Date'] >= '2020-03-01']
+print(f"Pre-COVID period (before March 2020):")
+print(f"  Number of records: {len(pre_covid)}")
+print(f"  Average unemployment rate: {pre_covid['Estimated Unemployment Rate (%)'].mean():.2f}%")
+print(f"\nDuring COVID period (March 2020 onwards):")
+print(f"  Number of records: {len(during_covid)}")
+print(f"  Average unemployment rate: {during_covid['Estimated Unemployment Rate (%)'].mean():.2f}%")
+# Calculate percentage change
+pre_covid_avg = pre_covid['Estimated Unemployment Rate (%)'].mean()
+covid_avg = during_covid['Estimated Unemployment Rate (%)'].mean()
+percentage_change = ((covid_avg - pre_covid_avg) / pre_covid_avg) * 100
+print(f"\nPercentage change in unemployment rate: {percentage_change:.2f}%")
+# Regional Analysis
+print("\n" + "=" * 50)
+print("REGIONAL ANALYSIS")
+print("=" * 50)
+# Top 10 regions most affected by COVID
+regional_impact = df_clean.groupby(['Region', pd.cut(df_clean['Date'], 
+                          [pd.Timestamp('2019-01-01'), pd.Timestamp('2020-03-01'), pd.Timestamp('2020-12-31')])])['Estimated Unemployment Rate (%)'].mean().unstack()
+
+regional_impact.columns = ['Pre_COVID', 'During_COVID']
+regional_impact = regional_impact.dropna()
+regional_impact['Change'] = regional_impact['During_COVID'] - regional_impact['Pre_COVID']
+regional_impact['Percentage_Change'] = (regional_impact['Change'] / regional_impact['Pre_COVID']) * 100
+print("\nTop 10 regions with highest increase in unemployment during COVID:")
+top_affected = regional_impact.nlargest(10, 'Change')[['Pre_COVID', 'During_COVID', 'Change', 'Percentage_Change']]
+print(top_affected)
+# Urban vs Rural Analysis
+print("\n" + "=" * 50)
+print("URBAN vs RURAL ANALYSIS")
+print("=" * 50)
+area_comparison = df_clean.groupby(['Area', 'Year'])['Estimated Unemployment Rate (%)'].mean().unstack()
+print("\nAverage Unemployment Rate by Area and Year:")
+print(area_comparison)
+# Monthly Analysis
+print("\n" + "=" * 50)
+print("MONTHLY ANALYSIS")
+print("=" * 50)
+monthly_analysis = df_clean.groupby(['Year', 'Month_Name'])['Estimated Unemployment Rate (%)'].mean().unstack()
+print("\nMonthly Average Unemployment Rate by Year:")
+print(monthly_analysis)
+# Advanced Visualizations
+print("\n" + "=" * 50)
+print("ADVANCED VISUALIZATIONS")
+print("=" * 50)
+# Create a larger figure for advanced plots
+fig, axes = plt.subplots(2, 2, figsize=(20, 15))
+# 1. Monthly trend with COVID highlight
+monthly_trend_detailed = df_clean.groupby(['Year', 'Month'])['Estimated Unemployment Rate (%)'].mean().reset_index()
+monthly_trend_detailed['Date'] = pd.to_datetime(monthly_trend_detailed[['Year', 'Month']].assign(DAY=1))
+axes[0, 0].plot(monthly_trend_detailed['Date'], monthly_trend_detailed['Estimated Unemployment Rate (%)'], 
+                marker='o', linewidth=2)
+axes[0, 0].axvline(x=pd.Timestamp('2020-03-01'), color='red', linestyle='--', 
+                  label='COVID-19 Start (Mar 2020)')
+axes[0, 0].set_title('Monthly Unemployment Trend with COVID-19 Impact', fontsize=14, fontweight='bold')
+axes[0, 0].set_xlabel('Date')
+axes[0, 0].set_ylabel('Unemployment Rate (%)')
+axes[0, 0].legend()
+axes[0, 0].grid(True, alpha=0.3)
+# 2. Top and Bottom regions
+plt.sca(axes[0, 1])
+top_bottom_regions = pd.concat([
+    df_clean.groupby('Region')['Estimated Unemployment Rate (%)'].mean().nlargest(10),
+    df_clean.groupby('Region')['Estimated Unemployment Rate (%)'].mean().nsmallest(10)
+])
+top_bottom_regions.plot(kind='bar')
+axes[0, 1].set_title('Top 10 Highest and Lowest Unemployment Regions', fontsize=14, fontweight='bold')
+axes[0, 1].set_ylabel('Average Unemployment Rate (%)')
+axes[0, 1].tick_params(axis='x', rotation=45)
+# 3. Employment vs Unemployment
+axes[1, 0].scatter(df_clean['Estimated Employed']/1000000, 
+                  df_clean['Estimated Unemployment Rate (%)'], 
+                  alpha=0.6, c=df_clean['Estimated Labour Participation Rate (%)'], 
+                  cmap='viridis')
+axes[1, 0].set_xlabel('Estimated Employed (Millions)')
+axes[1, 0].set_ylabel('Unemployment Rate (%)')
+axes[1, 0].set_title('Employment vs Unemployment Rate', fontsize=14, fontweight='bold')
+plt.colorbar(axes[1, 0].collections[0], ax=axes[1, 0], label='Labour Participation Rate (%)')
+# 4. Area-wise comparison over time
+area_monthly = df_clean.groupby(['Date', 'Area'])['Estimated Unemployment Rate (%)'].mean().unstack()
+area_monthly.plot(ax=axes[1, 1])
+axes[1, 1].set_title('Unemployment Rate Trend: Urban vs Rural', fontsize=14, fontweight='bold')
+axes[1, 1].set_xlabel('Date')
+axes[1, 1].set_ylabel('Unemployment Rate (%)')
+axes[1, 1].legend(title='Area')
+axes[1, 1].grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
+# Seasonal Analysis
+print("\n" + "=" * 50)
+print("SEASONAL ANALYSIS")
+print("=" * 50)
+# Create seasonal categories
+def get_season(month):
+    if month in [12, 1, 2]:
+        return 'Winter'
+    elif month in [3, 4, 5]:
+        return 'Spring'
+    elif month in [6, 7, 8]:
+        return 'Summer'
+    else:
+        return 'Autumn'
+df_clean['Season'] = df_clean['Month'].apply(get_season)
+seasonal_analysis = df_clean.groupby('Season')['Estimated Unemployment Rate (%)'].mean().sort_values(ascending=False)
+print("\nAverage Unemployment Rate by Season:")
+for season, rate in seasonal_analysis.items():
+    print(f"  {season}: {rate:.2f}%")
+# State-wise Performance Analysis
+print("\n" + "=" * 50)
+print("STATE-WISE PERFORMANCE ANALYSIS")
+print("=" * 50)
+state_performance = df_clean.groupby('Region').agg({
+    'Estimated Unemployment Rate (%)': ['mean', 'std', 'min', 'max'],
+    'Estimated Employed': 'mean',
+    'Estimated Labour Participation Rate (%)': 'mean'
+}).round(2)
+state_performance.columns = ['Avg_Unemployment', 'Std_Unemployment', 'Min_Unemployment', 
+                           'Max_Unemployment', 'Avg_Employed', 'Avg_Labour_Participation']
+print("\nTop 5 Best Performing States (Lowest Unemployment):")
+print(state_performance.nsmallest(5, 'Avg_Unemployment')[['Avg_Unemployment', 'Avg_Labour_Participation']])
+
+print("\nTop 5 Worst Performing States (Highest Unemployment):")
+print(state_performance.nlargest(5, 'Avg_Unemployment')[['Avg_Unemployment', 'Avg_Labour_Participation']])
+# Final Summary
+print("\n" + "=" * 60)
+print("FINAL SUMMARY")
+print("=" * 60)
+print(f" COMPREHENSIVE UNEMPLOYMENT ANALYSIS SUMMARY")
+print(f" Analysis Period: {df_clean['Date'].min().strftime('%b %Y')} to {df_clean['Date'].max().strftime('%b %Y')}")
+print(f"  Regions Covered: {df_clean['Region'].nunique()} states/UTs")
+print(f"Total Data Points: {len(df_clean)}")
+print(f"\n KEY FINDINGS:")
+print(f"   • Overall Average Unemployment Rate: {df_clean['Estimated Unemployment Rate (%)'].mean():.2f}%")
+print(f"   • Urban vs Rural Unemployment:")
+print(f"     - Urban: {df_clean[df_clean['Area'] == 'Urban']['Estimated Unemployment Rate (%)'].mean():.2f}%")
+print(f"     - Rural: {df_clean[df_clean['Area'] == 'Rural']['Estimated Unemployment Rate (%)'].mean():.2f}%")
+print(f"   • COVID-19 Impact: {percentage_change:+.2f}% increase in unemployment")
+print(f"   • Highest Unemployment Region: {df_clean.groupby('Region')['Estimated Unemployment Rate (%)'].mean().idxmax()}")
+print(f"   • Lowest Unemployment Region: {df_clean.groupby('Region')['Estimated Unemployment Rate (%)'].mean().idxmin()}")
+print(f"\n RECOMMENDATIONS:")
+print(f"   1. Focus on regions with highest unemployment rates")
+print(f"   2. Address urban-rural employment disparities")
+print(f"   3. Implement seasonal employment strategies")
+print(f"   4. Strengthen labour participation programs")
+# Save cleaned dataset
+df_clean.to_csv('cleaned_unemployment_data.csv', index=False)
+print(f"\n Cleaned dataset saved as 'cleaned_unemployment_data.csv'")
+print("\n" + "=" * 60)
+print("ANALYSIS COMPLETED SUCCESSFULLY!")
+print("=" * 60)
